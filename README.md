@@ -2,49 +2,38 @@
 
 Independent GlacierEQ portfolio exhibit aligned to **Supabase** operating themes.
 
-> **Not affiliated.** This repository is not affiliated with, endorsed by, employed by, or deployed at Supabase.
-> No proprietary access, production deployment, customer impact, or company partnership is claimed.
+> **Not affiliated.** This repository is not affiliated with, endorsed by, employed by, or deployed at Supabase. No proprietary access, production deployment, customer impact, or company partnership is claimed.
 
-## Bottleneck (GlacierEQ hypothesis)
+## Problem
 
-keeping an integrated developer platform simple while AI apps introduce background jobs, embeddings, agents, permissions and rapidly growing state
+AI applications increasingly mix foreground requests, background jobs, embeddings, agents, permissions, and durable state. Ambient authorization becomes dangerous when work outlives the request that created it.
 
-**Brick wall:** Silent success without receipts; affiliation or production claims without evidence.
+## Implemented mechanism
 
-**Observed public pressure (snapshot hypothesis):** Public market pressure toward AI-enabled products and operators (hypothesis only).
+**Policy-Carrying AI Data Plane** binds each data operation to an explicit `PolicyEnvelope` containing tenant identity, subject, table/operation scope, RLS version, claims version, issuance/expiry, delegation permission, and provenance parent.
 
-## Innovation mechanism
+The evaluator fails closed when:
 
-**Policy-Carrying AI Data Plane** — Propagate row-level security identity and policy into embedding generation, retrieval, tool execution and generated artifacts so AI never leaves the authorization model of the source data.
+- tenant/table/operation scope diverges;
+- claims or RLS versions drift;
+- policy snapshots are inactive, expired, or stale;
+- a background job lacks explicit delegation;
+- a child operation lacks parent provenance.
 
-## Target roles
+Successful operations emit deterministic policy and provenance digests. `evaluate_chain()` propagates receipt provenance and stops at the first policy violation.
 
-- Applied AI Systems Engineer
-- Forward-Deployed Engineer
+## Proof surface
 
-## Application move
+- `src/policy_carrying_ai_data_plane.py` — domain mechanism
+- `tests/test_policy_carrying_ai_data_plane.py` — scope, RLS/claims, freshness, delegation, provenance, chain tests
+- `tests/test_adversarial.py` — generic estate adversarial lane
+- `scripts/operate.py` — direct two-operation policy-chain execution
+- `.github/workflows/tests.yml` — pytest + operate CI
 
-Lead with a small, inspectable RLS Policy Twin exhibit and explicit non-affiliation boundary.
+## Current boundary
 
-## Current scaffold state
-
-This leaf is a **scaffold**: contracts, tests, and a stub mechanism exist so another engineer/AI can fill production-grade code without inventing company affiliation.
-
-| Surface | Path |
-|---------|------|
-| Mechanism stub | `src/policy_carrying_ai_data_plane.py` |
-| Operate entry | `scripts/operate.py` |
-| Contract tests | `tests/` |
-| Target contract | `machine/target-contract.json` |
-| **AI fill-in brief** | **`DEV_UP_INSTRUCTIONS.md`** |
-| Issue contract | `ISSUE_CONTRACT.md` |
-
-## Non-claims
-
-- No Supabase employment, endorsement, proprietary data, or production use
-- No customer, revenue, latency, or scale claims without separate receipts
-- Scaffold tests define **intended behavior**, not verified production excellence
+This is a deterministic reference implementation using synthetic policy envelopes. It does **not** connect to Supabase Auth, Postgres RLS, Edge Functions, queues, or a production tenant. Those integrations are the next evidence gate, not current claims.
 
 ## Next gate
 
-CURRENT_SOURCE_VALIDATION
+Bind the envelope contract to a disposable Supabase project and prove policy-version propagation across a real RLS-protected foreground request and delegated background job.
