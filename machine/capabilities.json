@@ -1,0 +1,12 @@
+{
+  "schema": "glaciereq.repo-capabilities.v1",
+  "repository": "GlacierEQ/supabase-policy-carrying-ai-data-plane",
+  "capabilities": [
+    {
+      "id": "policy-carrying-ai-data-plane",
+      "name": "Policy-Carrying AI Data Plane",
+      "status": "SCAFFOLD",
+      "module": "src/policy_carrying_ai_data_plane.py"
+    }
+  ]
+}

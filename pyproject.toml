@@ -1,0 +1,10 @@
+[project]
+name = "supabase-policy-carrying-ai-data-plane"
+version = "0.0.1"
+description = "Scaffold: Policy-Carrying AI Data Plane (independent Supabase lens)"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

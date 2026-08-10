@@ -1,0 +1,31 @@
+{
+  "schema": "glaciereq.proof-receipt.v1",
+  "repository": "GlacierEQ/supabase-policy-carrying-ai-data-plane",
+  "source_sha": "a767d8c16c36bd4253985cde19dc3737620e27f4e37e177a1184e15e5b7cb986",
+  "proof_id": "elite-supabase-policy-carrying-ai-data-plane-1786356701",
+  "environment": {
+    "python": "/Users/kcbflux/.local/bin/python3.11",
+    "PYTHONPATH": "/Users/kcbflux/GlacierEQ_Swarm/job-app/repos/supabase-policy-carrying-ai-data-plane:/Users/kcbflux/GlacierEQ_Swarm/job-app/repos/supabase-policy-carrying-ai-data-plane/src",
+    "entry": "unittest"
+  },
+  "tests": [
+    "/Users/kcbflux/.local/bin/python3.11 -m unittest discover -s tests -v (x2)"
+  ],
+  "adversarial_tests": [
+    "tests/test_adversarial.py"
+  ],
+  "runtime": {
+    "operate": "scripts/operate.py (x2)",
+    "dual_run_ok": true,
+    "proof_dual_run_ok": true
+  },
+  "result": "PASS",
+  "limitations": [
+    "not production deployed",
+    "reference implementation only"
+  ],
+  "timestamp": "2026-08-10T10:11Z",
+  "artifact_hashes": {
+    "operability_receipt": "cb65ef8f15c12457619ac255cb39cc26476779d5ec5caad5a5a195ffc965313f"
+  }
+}
