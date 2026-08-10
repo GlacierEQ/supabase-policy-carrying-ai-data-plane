@@ -1,22 +1,17 @@
-"""Policy-Carrying AI Data Plane — SCAFFOLD STUB.
+"""Policy-Carrying AI Data Plane — independent reference implementation.
 
-Company lens: Supabase (independent; no affiliation).
-Bottleneck: keeping an integrated developer platform simple while AI apps introduce background jobs, embeddings, agents, permissions and rapidly growing state
-
-IMPLEMENTATION: see DEV_UP_INSTRUCTIONS.md
+The mechanism makes authorization context travel with every data operation instead
+of assuming ambient session state. It models RLS/claim versions, tenant scope,
+background-job delegation, expiry, and provenance as one deterministic contract.
 """
 from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass, field
+import math
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any
-
-
-def _digest(obj: object) -> str:
-    payload = json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+from typing import Any, Iterable
 
 
 class Decision(str, Enum):
@@ -24,89 +19,165 @@ class Decision(str, Enum):
     REFUSE = "REFUSE"
 
 
-@dataclass(frozen=True)
-class PolicyCarryingAiDataPlaneRequest:
-    """Input envelope — expand fields as the mechanism solidifies."""
+def _canonical(value: Any) -> str:
+    def norm(v: Any) -> Any:
+        if v is None or isinstance(v, (str, bool, int)):
+            return v
+        if isinstance(v, float):
+            if not math.isfinite(v):
+                raise ValueError("non_finite_value")
+            return v
+        if isinstance(v, (list, tuple)):
+            return [norm(x) for x in v]
+        if isinstance(v, dict):
+            if not all(isinstance(k, str) for k in v):
+                raise ValueError("non_string_key")
+            return {k: norm(v[k]) for k in sorted(v)}
+        raise ValueError(f"unsupported_type:{type(v).__name__}")
+    return json.dumps(norm(value), sort_keys=True, separators=(",", ":"), allow_nan=False)
 
+
+def _digest(value: Any) -> str:
+    return hashlib.sha256(_canonical(value).encode()).hexdigest()
+
+
+@dataclass(frozen=True)
+class PolicyEnvelope:
+    policy_id: str
+    tenant_id: str
     subject_id: str
-    payload: dict[str, Any] = field(default_factory=dict)
-    budget: float = 1.0
-    # Authority / freshness placeholders for the filling AI:
-    grant_id: str | None = None
-    not_after: float | None = None
+    allowed_tables: tuple[str, ...]
+    allowed_operations: tuple[str, ...]
+    claims_version: int
+    rls_version: int
+    issued_at: float
+    not_after: float
+    provenance_parent: str | None = None
+    delegated_background_job: bool = False
+
+    def fingerprint(self) -> str:
+        return _digest(self.__dict__)
 
 
 @dataclass(frozen=True)
-class PolicyCarryingAiDataPlaneReceipt:
+class DataOperation:
+    operation_id: str
+    tenant_id: str
+    table: str
+    operation: str
+    required_claims_version: int
+    required_rls_version: int
+    background_job: bool = False
+    parent_operation_id: str | None = None
+
+
+@dataclass(frozen=True)
+class PolicyDecisionReceipt:
     decision: Decision
     reasons: tuple[str, ...]
-    digest: str
-    metrics: dict[str, Any] = field(default_factory=dict)
+    operation_id: str
+    policy_fingerprint: str
+    provenance_digest: str
+    metrics: dict[str, Any]
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "decision": self.decision.value,
             "reasons": list(self.reasons),
-            "digest": self.digest,
+            "operation_id": self.operation_id,
+            "policy_fingerprint": self.policy_fingerprint,
+            "provenance_digest": self.provenance_digest,
             "metrics": self.metrics,
         }
 
 
 class PolicyCarryingAiDataPlane:
-    """Central mechanism stub.
+    """Fail-closed policy propagation across foreground and background data work."""
 
-    Contract the filling AI must preserve:
-    - `evaluate(req)` returns a PolicyCarryingAiDataPlaneReceipt
-    - invalid/empty subject_id → REFUSE
-    - budget <= 0 → REFUSE
-    - otherwise ALLOW with a content digest over the request
-    Replace body with the real algorithm; keep fail-closed edges.
-    """
+    def __init__(self, *, max_policy_age_s: float = 3600.0):
+        if not math.isfinite(max_policy_age_s) or max_policy_age_s <= 0:
+            raise ValueError("invalid_max_policy_age")
+        self.max_policy_age_s = float(max_policy_age_s)
 
-    # Named constants (no magic numbers)
-    MIN_BUDGET: float = 0.0
-    MAX_REASON_LEN: int = 240
-
-    def evaluate(self, req: PolicyCarryingAiDataPlaneRequest) -> PolicyCarryingAiDataPlaneReceipt:
+    def evaluate(
+        self,
+        policy: PolicyEnvelope,
+        operation: DataOperation,
+        *,
+        now: float,
+        parent_receipt_digest: str | None = None,
+    ) -> PolicyDecisionReceipt:
+        if not math.isfinite(now):
+            raise ValueError("non_finite_now")
         reasons: list[str] = []
-        if not req.subject_id or not str(req.subject_id).strip():
-            reasons.append("subject_id_missing")
-        if req.budget <= self.MIN_BUDGET:
-            reasons.append("budget_non_positive")
-        # Scaffold: treat missing grant as soft signal only; real impl may hard-refuse.
-        if reasons:
-            body = {
-                "subject_id": req.subject_id,
-                "payload": req.payload,
-                "budget": req.budget,
-                "decision": Decision.REFUSE.value,
-                "reasons": reasons,
-            }
-            return PolicyCarryingAiDataPlaneReceipt(
-                decision=Decision.REFUSE,
-                reasons=tuple(reasons),
-                digest=_digest(body),
-                metrics={"scaffold": True, "reason_count": len(reasons)},
-            )
+        if not policy.policy_id.strip() or not policy.subject_id.strip() or not policy.tenant_id.strip():
+            reasons.append("policy_identity_missing")
+        if policy.not_after <= policy.issued_at:
+            reasons.append("policy_lifetime_invalid")
+        if now < policy.issued_at:
+            reasons.append("policy_not_active")
+        if now > policy.not_after:
+            reasons.append("policy_expired")
+        if now - policy.issued_at > self.max_policy_age_s:
+            reasons.append("policy_snapshot_stale")
+        if operation.tenant_id != policy.tenant_id:
+            reasons.append("tenant_scope_mismatch")
+        if operation.table not in policy.allowed_tables:
+            reasons.append("table_not_authorized")
+        if operation.operation not in policy.allowed_operations:
+            reasons.append("operation_not_authorized")
+        if operation.required_claims_version != policy.claims_version:
+            reasons.append("claims_version_mismatch")
+        if operation.required_rls_version != policy.rls_version:
+            reasons.append("rls_version_mismatch")
+        if operation.background_job and not policy.delegated_background_job:
+            reasons.append("background_job_not_delegated")
+        if operation.parent_operation_id and not parent_receipt_digest:
+            reasons.append("parent_provenance_missing")
 
-        body = {
-            "subject_id": req.subject_id,
-            "payload": req.payload,
-            "budget": req.budget,
-            "grant_id": req.grant_id,
-            "decision": Decision.ALLOW.value,
+        policy_fp = policy.fingerprint()
+        provenance = {
+            "policy": policy_fp,
+            "policy_parent": policy.provenance_parent,
+            "operation_id": operation.operation_id,
+            "operation_parent": operation.parent_operation_id,
+            "parent_receipt": parent_receipt_digest,
         }
-        return PolicyCarryingAiDataPlaneReceipt(
-            decision=Decision.ALLOW,
-            reasons=("scaffold_allow",),
-            digest=_digest(body),
+        return PolicyDecisionReceipt(
+            decision=Decision.REFUSE if reasons else Decision.ALLOW,
+            reasons=tuple(reasons or ["policy_chain_valid"]),
+            operation_id=operation.operation_id,
+            policy_fingerprint=policy_fp,
+            provenance_digest=_digest(provenance),
             metrics={
-                "scaffold": True,
-                "payload_keys": sorted(req.payload.keys()),
-                "budget": req.budget,
+                "claims_version": policy.claims_version,
+                "rls_version": policy.rls_version,
+                "background_job": operation.background_job,
+                "policy_age_s": now - policy.issued_at,
             },
         )
 
+    def evaluate_chain(
+        self,
+        policy: PolicyEnvelope,
+        operations: Iterable[DataOperation],
+        *,
+        now: float,
+    ) -> tuple[PolicyDecisionReceipt, ...]:
+        receipts: list[PolicyDecisionReceipt] = []
+        previous_digest: str | None = None
+        for op in operations:
+            receipt = self.evaluate(
+                policy,
+                op,
+                now=now,
+                parent_receipt_digest=previous_digest if op.parent_operation_id else None,
+            )
+            receipts.append(receipt)
+            if receipt.decision is Decision.REFUSE:
+                break
+            previous_digest = _digest(receipt.as_dict())
+        return tuple(receipts)
 
-# Friendly alias for operate scripts
+
 Mechanism = PolicyCarryingAiDataPlane
