@@ -1,39 +1,89 @@
 # Policy-Carrying AI Data Plane
 
-Independent GlacierEQ portfolio exhibit aligned to **Supabase** operating themes.
+Independent GlacierEQ portfolio implementation aligned to public Supabase/Postgres operating patterns.
 
-> **Not affiliated.** This repository is not affiliated with, endorsed by, employed by, or deployed at Supabase. No proprietary access, production deployment, customer impact, or company partnership is claimed.
+> **Not affiliated.** This repository is not affiliated with, endorsed by, employed by, or deployed by Supabase.
 
-## Problem
+## Purpose
 
-AI applications increasingly mix foreground requests, background jobs, embeddings, agents, permissions, and durable state. Ambient authorization becomes dangerous when work outlives the request that created it.
+AI work outlives foreground requests. Authorization therefore has to travel with the work rather than leaking out of ambient session state.
 
-## Implemented mechanism
+This repository now implements that contract in **two layers that agree**:
 
-**Policy-Carrying AI Data Plane** binds each data operation to an explicit `PolicyEnvelope` containing tenant identity, subject, table/operation scope, RLS version, claims version, issuance/expiry, delegation permission, and provenance parent.
+1. a deterministic Python policy/provenance evaluator; and
+2. a live Supabase/Postgres RLS enforcement surface deployed into an isolated schema in `supabase-glaciereq`.
 
-The evaluator fails closed when:
+## Local policy engine
 
-- tenant/table/operation scope diverges;
-- claims or RLS versions drift;
-- policy snapshots are inactive, expired, or stale;
-- a background job lacks explicit delegation;
-- a child operation lacks parent provenance.
+`PolicyEnvelope` binds:
 
-Successful operations emit deterministic policy and provenance digests. `evaluate_chain()` propagates receipt provenance and stops at the first policy violation.
+- tenant and subject identity
+- allowed table/operation scope
+- claims version
+- RLS version
+- issue/expiry window
+- delegated-background permission
+- provenance parent
 
-## Proof surface
+`PolicyCarryingAiDataPlane.evaluate()` fails closed on tenant/scope/version/freshness/delegation/provenance drift and emits deterministic policy/provenance digests. `evaluate_chain()` carries provenance from foreground work into dependent work and stops at the first refusal.
 
-- `src/policy_carrying_ai_data_plane.py` — domain mechanism
-- `tests/test_policy_carrying_ai_data_plane.py` — scope, RLS/claims, freshness, delegation, provenance, chain tests
-- `tests/test_adversarial.py` — generic estate adversarial lane
-- `scripts/operate.py` — direct two-operation policy-chain execution
-- `.github/workflows/tests.yml` — pytest + operate CI
+## Live Supabase RLS implementation
+
+Migration: `supabase/migrations/20260812190100_crystallization_policy_carrying_ai_data_plane_v1.sql`
+
+Applied project ref: `kjebemdgvjvuutzvhbtp` (`supabase-glaciereq`)
+
+The migration is additive and isolated under `crystallization_policy_data_plane`. It does not modify existing application tables.
+
+It creates:
+
+- `policy_envelopes`
+- `operation_receipts`
+- forced RLS on both tables
+- JWT-claim extraction for `sub`, `tenant_id`, `claims_version`, and `rls_version`
+- tenant/subject/version/time-scoped policy visibility
+- insert admission constrained by policy table/operation scope
+- delegated background admission only when an allowed parent receipt exists
+- one-shot operation IDs for replay refusal
+- `public.crystallization_admit_policy_operation(...)` as a **SECURITY INVOKER** RPC, so the function cannot step around row security
+
+## Live proof executed 2026-08-12
+
+Under the real Postgres `authenticated` role with request JWT claims set in-session:
+
+| Case | Result |
+|---|---|
+| foreground `documents/select` | **ALLOW** / `rls_policy_chain_valid` |
+| delegated background `documents/insert` with foreground parent | **ALLOW** / `rls_policy_chain_valid` |
+| replay of the foreground operation UUID | **REFUSE** / `operation_replay` |
+| same policy requested under another tenant claim | **REFUSE** / `policy_not_visible_or_active` |
+
+Sanitized exact observations are preserved in `machine/live-supabase-rls-proof.json`.
+
+A post-migration Supabase security-advisor snapshot produced **no finding against the new isolation schema**. Existing advisor findings elsewhere in the project are not claimed as this repository's behavior or repaired by this migration.
+
+## Python → Supabase adapter
+
+`src/supabase_integration.py` converts local model objects into the concrete live boundary:
+
+- `jwt_claims_for_policy(policy)` emits the custom claims consumed by RLS and requires a UUID-compatible Supabase subject identity.
+- `rpc_payload_for_operation(...)` builds the arguments accepted by the deployed RPC and refuses background operations without parent UUID provenance.
+
+This keeps the reference evaluator and database enforcement from drifting into unrelated APIs with the same nouns.
+
+## Verification
+
+```bash
+python -m pytest -q
+python scripts/operate.py
+```
+
+CI covers the deterministic mechanism and the adapter contract. The live proof receipt records the separately executed database integration because public CI does not contain a production database credential.
 
 ## Current boundary
 
-This is a deterministic reference implementation using synthetic policy envelopes. It does **not** connect to Supabase Auth, Postgres RLS, Edge Functions, queues, or a production tenant. Those integrations are the next evidence gate, not current claims.
+**Proven now:** deterministic policy evaluation, policy-chain provenance, real Supabase/Postgres forced RLS, authenticated-role claim enforcement, real foreground admission, delegated background admission, replay refusal, tenant isolation, security-invoker RPC.
 
-## Next gate
+**Not yet claimed:** Supabase Auth token issuance over the network, an Edge Function transport, a queue provider, production customer traffic, or a production tenant using this isolated proof schema.
 
-Bind the envelope contract to a disposable Supabase project and prove policy-version propagation across a real RLS-protected foreground request and delegated background job.
+Those remaining integrations are explicit capability gaps, not hidden behind a green test badge.

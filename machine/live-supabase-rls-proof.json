@@ -1,0 +1,45 @@
+{
+  "schema": "glaciereq.supabase-policy-data-plane-live-proof.v1",
+  "project_ref": "kjebemdgvjvuutzvhbtp",
+  "project_name": "supabase-glaciereq",
+  "migration": "crystallization_policy_carrying_ai_data_plane_v1",
+  "observed_date": "2026-08-12",
+  "isolation_schema": "crystallization_policy_data_plane",
+  "rpc": "public.crystallization_admit_policy_operation",
+  "rls_forced": ["policy_envelopes", "operation_receipts"],
+  "cases": [
+    {
+      "name": "foreground",
+      "operation_id": "20000000-0000-0000-0000-000000000001",
+      "decision": "ALLOW",
+      "reasons": ["rls_policy_chain_valid"],
+      "policy_fingerprint": "a02477548436fa84d21814bb6ec9c4014fffd1ed839de0900a51bce5c78fb7a3",
+      "provenance_digest": "29335250ba08d86246a0e5382cfe5278642b6e49719569ffb7028f6a339fe415"
+    },
+    {
+      "name": "delegated_background",
+      "operation_id": "20000000-0000-0000-0000-000000000002",
+      "decision": "ALLOW",
+      "reasons": ["rls_policy_chain_valid"],
+      "parent_operation_id": "20000000-0000-0000-0000-000000000001",
+      "policy_fingerprint": "a02477548436fa84d21814bb6ec9c4014fffd1ed839de0900a51bce5c78fb7a3",
+      "provenance_digest": "98afca2d1685dc7d745ead03279a90ea4cffe3a2822968de9dbd889d7a28af4c"
+    },
+    {
+      "name": "replay",
+      "operation_id": "20000000-0000-0000-0000-000000000001",
+      "decision": "REFUSE",
+      "reasons": ["operation_replay"]
+    },
+    {
+      "name": "wrong_tenant",
+      "operation_id": "20000000-0000-0000-0000-000000000003",
+      "decision": "REFUSE",
+      "reasons": ["policy_not_visible_or_active"]
+    }
+  ],
+  "security_advisor_checked_after_migration": true,
+  "security_advisor_findings_matching_isolation_schema": 0,
+  "claim_boundary": "Real Supabase/Postgres RLS and security-invoker RPC proven with authenticated-role JWT claim simulation. Supabase Auth token issuance, Edge Functions, and queue transport are not yet claimed.",
+  "proof_body_sha256": "fa8a354bedf17edc6a6dd0cc3073c297b062105618dc0a21472fc962f075919b"
+}
