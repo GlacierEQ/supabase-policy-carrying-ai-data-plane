@@ -1,0 +1,41 @@
+{
+  "schema": "glaciereq.supabase-policy-data-plane-edge-proof.v1",
+  "observed_date": "2026-08-13",
+  "project_ref": "kjebemdgvjvuutzvhbtp",
+  "project_name": "supabase-glaciereq",
+  "function": {
+    "name": "crystallization-policy-operation",
+    "slug": "crystallization-policy-operation",
+    "id": "d7561994-a6f7-4a73-bb97-bb2aacec52c8",
+    "version": 1,
+    "status": "ACTIVE",
+    "verify_jwt": true,
+    "deployment_sha256": "7ea5f349206fb7f59d305e3a66e38cc6c01da14a7d3c949822fa7d856a54e617",
+    "source_path": "supabase/functions/crystallization-policy-operation/index.ts"
+  },
+  "transport_contract": {
+    "caller_authorization_forwarded": true,
+    "service_role_used": false,
+    "rpc": "crystallization_admit_policy_operation",
+    "rpc_security_mode": "SECURITY INVOKER",
+    "underlying_isolation_schema": "crystallization_policy_data_plane",
+    "background_requires_parent_operation_id": true,
+    "foreground_forbids_parent_operation_id": true,
+    "rpc_error_decision": "REFUSE"
+  },
+  "previous_live_database_proof": "machine/live-supabase-rls-proof.json",
+  "proved": [
+    "an authenticated Supabase Edge Function transport is deployed and ACTIVE",
+    "platform JWT verification is enabled for the function",
+    "the caller Authorization header is forwarded into the Supabase client",
+    "the transport calls the existing security-invoker policy admission RPC",
+    "the transport does not use a service-role credential or direct table mutation path",
+    "foreground/background parent-provenance shape is fail-closed before RPC execution"
+  ],
+  "not_yet_proved": [
+    "successful network invocation using a real Supabase Auth-issued user token carrying the required tenant_id, claims_version, and rls_version custom claims",
+    "queue transport for delegated background work",
+    "production customer traffic or production tenant adoption"
+  ],
+  "truth_boundary": "This receipt proves deployment/configuration and source-to-deployment identity for an authenticated Edge transport over the already-proven RLS/RPC boundary. It does not claim an end-user Auth issuance flow or production deployment."
+}
