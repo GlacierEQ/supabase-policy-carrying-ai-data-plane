@@ -13,7 +13,7 @@
     "ADVERSARIAL_SURVIVAL": {"status": "PENDING", "evidence": "current bodybuild head requires fresh CI"},
     "OPERABLE_AND_OBSERVABLE": {"status": "PENDING", "evidence": "current bodybuild head requires fresh operate readback"},
     "PROOF_RECEIPT_BOUND": {"status": "PENDING", "evidence": "old receipt bound the scaffold source, not this implementation"},
-    "AUTHORITY_BOUND": {"status": "PENDING", "evidence": "public local HMAC is not promotion authority for this implementation"},
+    "READINESS_RECEIPT_AVAILABLE": {"status": "PASS", "evidence": "keyless receipt contract available; it does not replace pending current-head proof"},
     "PROJECTION_TRUTH_CLOSED": {"status": "PENDING", "evidence": "promotion revoked pending implementation proof"},
     "CANONICAL_POSITION_RESOLVED": {"status": "PENDING"},
     "EVOLUTION_CURSOR_DEFINED": {"status": "PASS", "at": "2026-08-10T11:59Z", "evidence": "next:fresh_ci_then_source_bound_implementation_proof"}
@@ -34,6 +34,14 @@
       "gate": "PROMOTION_TRUTH_REPAIR",
       "result": "PASS",
       "note": "generic scaffold replaced by domain mechanism; fresh proof intentionally required"
+    },
+    {
+      "at": "2026-08-22T11:10Z",
+      "from": "IMPLEMENTED",
+      "to": "IMPLEMENTED",
+      "gate": "READINESS_RECEIPT_AVAILABLE",
+      "result": "PASS",
+      "note": "secret-bound promotion authority inverted into keyless readiness receipt; external proof remains pending"
     }
   ],
   "contract_ref": "machine/target-contract.json",
@@ -54,6 +62,6 @@
   "promotion_blockers": [
     "CURRENT_HEAD_CI_PENDING",
     "CURRENT_HEAD_IMPLEMENTATION_PROOF_PENDING",
-    "EXTERNAL_PROMOTION_AUTHORITY_PENDING"
+    "CURRENT_HEAD_COMPOSITION_RECEIPT_PENDING"
   ]
 }

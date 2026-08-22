@@ -1,11 +1,15 @@
 {
-  "schema": "glaciereq.promotion-authority-grant.v1",
+  "schema": "glaciereq.readiness-receipt-compatibility.v1",
   "repository": "GlacierEQ/supabase-policy-carrying-ai-data-plane",
-  "source_sha": "a767d8c16c36bd4253985cde19dc3737620e27f4e37e177a1184e15e5b7cb986",
-  "proof_receipt_digest": "656a9daf07245a06c77da7d5180e2fac8980301b05fd47fde0d59f7a9a684d6d",
-  "not_after": 1788948701.343628,
-  "mac": "aac05d8dcd1c838d3569e6fcb1a155c3b94022ae23b9a71ffa70038fd3e596cd",
-  "issuer": "local_operator_promotion_authority",
-  "verified": true,
-  "secret_ref": "src/promotion_authority.py::LOCAL_OPERATOR_SECRET"
+  "status": "HISTORICAL_PROMOTION_AUTHORITY_INVERTED",
+  "replacement": "src/promotion_authority.py::ReadinessReceipt",
+  "historical_authority": {
+    "source_sha": "a767d8c16c36bd4253985cde19dc3737620e27f4e37e177a1184e15e5b7cb986",
+    "proof_receipt_digest": "656a9daf07245a06c77da7d5180e2fac8980301b05fd47fde0d59f7a9a684d6d",
+    "not_after": 1788948701.343628,
+    "mac": "aac05d8dcd1c838d3569e6fcb1a155c3b94022ae23b9a71ffa70038fd3e596cd",
+    "issuer": "local_operator_promotion_authority",
+    "verified": true
+  },
+  "note": "This retained path records the historical grant but is no longer an active secret-bound promotion mechanism."
 }
