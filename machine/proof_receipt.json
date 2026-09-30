@@ -4,12 +4,12 @@
   "source_sha": "a767d8c16c36bd4253985cde19dc3737620e27f4e37e177a1184e15e5b7cb986",
   "proof_id": "elite-supabase-policy-carrying-ai-data-plane-1786356701",
   "environment": {
-    "python": "/Users/kcbflux/.local/bin/python3.11",
-    "PYTHONPATH": "/Users/kcbflux/GlacierEQ_Swarm/job-app/repos/supabase-policy-carrying-ai-data-plane:/Users/kcbflux/GlacierEQ_Swarm/job-app/repos/supabase-policy-carrying-ai-data-plane/src",
+    "python": "${HOME}/.local/bin/python3.11",
+    "PYTHONPATH": "${HOME}/GlacierEQ_Swarm/job-app/repos/supabase-policy-carrying-ai-data-plane:${HOME}/GlacierEQ_Swarm/job-app/repos/supabase-policy-carrying-ai-data-plane/src",
     "entry": "unittest"
   },
   "tests": [
-    "/Users/kcbflux/.local/bin/python3.11 -m unittest discover -s tests -v (x2)"
+    "${HOME}/.local/bin/python3.11 -m unittest discover -s tests -v (x2)"
   ],
   "adversarial_tests": [
     "tests/test_adversarial.py"
